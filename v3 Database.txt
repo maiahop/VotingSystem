@@ -1,0 +1,121 @@
+-- ============================================
+-- 1) Drop old database if exists
+-- ============================================
+IF EXISTS (SELECT * FROM sys.databases WHERE name = 'ElectionDB')
+BEGIN
+    ALTER DATABASE ElectionDB SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE ElectionDB;
+END
+GO
+
+-- ============================================
+-- 2) Create database
+-- ============================================
+CREATE DATABASE ElectionDB;
+GO
+
+USE ElectionDB;
+GO
+
+-- ============================================
+-- 3) Admins table
+-- ============================================
+CREATE TABLE Admins (
+    AdminID INT IDENTITY(1,1) PRIMARY KEY,
+    Username NVARCHAR(50) NOT NULL UNIQUE,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    FullName NVARCHAR(100) NULL,
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    UpdatedAt DATETIME NULL
+);
+GO
+
+INSERT INTO Admins (Username, PasswordHash, FullName)
+VALUES ('Admin', 'admin123', 'Administrator');
+GO
+
+-- ============================================
+-- 4) Positions table
+-- ============================================
+CREATE TABLE Positions (
+    PositionID INT IDENTITY(1,1) PRIMARY KEY,
+    PositionName NVARCHAR(50) NOT NULL UNIQUE,
+    PositionOrder INT NOT NULL
+);
+GO
+
+INSERT INTO Positions (PositionName, PositionOrder) VALUES
+('President', 1),
+('Vice President', 2),
+('Secretary', 3),
+('Treasurer', 4),
+('P.R.O.', 5),
+('Class Representative 1', 6),
+('Class Representative 2', 7);
+GO
+
+-- ============================================
+-- 5) Candidates table
+-- ============================================
+CREATE TABLE Candidates (
+    CandidID INT IDENTITY(1,1) PRIMARY KEY,
+    FullName NVARCHAR(100) NOT NULL,
+    PositionID INT NOT NULL,
+    CandidateOrder INT NULL,
+    CreatedByAdminID INT NULL,
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    UpdatedAt DATETIME NULL,
+    FOREIGN KEY (PositionID) REFERENCES Positions(PositionID) ON DELETE CASCADE,
+    FOREIGN KEY (CreatedByAdminID) REFERENCES Admins(AdminID)
+);
+GO
+
+CREATE UNIQUE INDEX UX_Candidates_Position_FullName
+ON Candidates (PositionID, FullName);
+GO
+
+-- ============================================
+-- 6) Voters table
+-- ============================================
+CREATE TABLE Voters (
+    StudNo INT PRIMARY KEY,
+    FullName NVARCHAR(100) NOT NULL,
+    Email NVARCHAR(320) NULL,
+    Age INT NULL,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    HasVoted BIT DEFAULT 0,
+    VotedAt DATETIME NULL,
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    UpdatedAt DATETIME NULL
+);
+GO
+
+-- ============================================
+-- 7) Votes table with candidate name
+-- ============================================
+CREATE TABLE Votes (
+    VoteID INT IDENTITY(1,1) PRIMARY KEY,
+    StudNo INT NOT NULL,
+    CandidID INT NOT NULL,
+    CandidateName NVARCHAR(100) NOT NULL, -- new column
+    PositionID INT NOT NULL,
+    VoteDate DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (StudNo) REFERENCES Voters(StudNo) ON DELETE NO ACTION,
+    FOREIGN KEY (CandidID) REFERENCES Candidates(CandidID) ON DELETE NO ACTION,
+    FOREIGN KEY (PositionID) REFERENCES Positions(PositionID) ON DELETE NO ACTION
+);
+GO
+
+-- ============================================
+-- 8) Settings table
+-- ============================================
+CREATE TABLE Settings (
+    SettingID INT PRIMARY KEY,
+    ElectionStopped BIT DEFAULT 0
+);
+GO
+
+INSERT INTO Settings(SettingID, ElectionStopped) VALUES(1, 0);
+GO
+
+PRINT 'ElectionDB fully updated and ready with CandidateName stored in Votes!';
